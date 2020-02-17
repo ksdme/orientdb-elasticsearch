@@ -28,7 +28,7 @@
     <properties>
         <javac.src.version>1.6</javac.src.version>
         <javac.target.version>1.7</javac.target.version>
-        <orientdb.version>${version}</orientdb.version>
+        <orientdb.version>${project.version}</orientdb.version>
         <es.version>2.1.2</es.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
@@ -91,6 +91,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
                 <configuration>
                     <source>1.6</source>
                     <target>1.7</target>

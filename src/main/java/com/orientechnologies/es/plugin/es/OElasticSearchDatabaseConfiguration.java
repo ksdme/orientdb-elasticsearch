@@ -54,8 +54,10 @@ public class OElasticSearchDatabaseConfiguration {
 
     if (configuration.eval("include.clusters") != null) {
       final ODocument incClusters = (ODocument) configuration.eval("include.clusters");
+
       for (String cl : incClusters.fieldNames()) {
         final Collection<String> clFields = incClusters.field(cl);
+
         if (clFields != null)
           includeClusters.put(cl, new HashSet<String>(clFields));
         else
@@ -65,8 +67,10 @@ public class OElasticSearchDatabaseConfiguration {
 
     if (configuration.eval("include.classes") != null) {
       final ODocument incClasses = (ODocument) configuration.eval("include.classes");
+
       for (String cl : incClasses.fieldNames()) {
         final Collection<String> clFields = incClasses.field(cl);
+
         if (clFields != null)
           includeClasses.put(cl, new HashSet<String>(clFields));
         else
@@ -76,8 +80,8 @@ public class OElasticSearchDatabaseConfiguration {
   }
 
   /**
-   * Returns null if the record must be not synchronized, other wise the set of fields to synchronize. An empty set means all the
-   * fields.
+   * Returns null if the record must be not synchronized, other wise the set of
+   * fields to synchronize. An empty set means all the fields.
    */
   public Set<String> getSyncFields(final ODocument record) {
     final String className = record.getClassName();
@@ -87,20 +91,22 @@ public class OElasticSearchDatabaseConfiguration {
     if (excludeClasses.contains(className))
       return null;
 
-    final ODatabaseDocumentInternal db = ODatabaseRecordThreadLocal.INSTANCE.get();
+    final ODatabaseDocumentInternal db = ODatabaseRecordThreadLocal.instance().get();
 
     final String clusterName = db.getClusterNameById(record.getIdentity().getClusterId());
     if (excludeClasses.contains(clusterName))
       return null;
 
     if (!includeClasses.isEmpty()) {
-      if (includeClasses.containsKey(className))
+      if (includeClasses.containsKey(className)) {
         return includeClasses.get(className);
+      }
     }
 
     if (!includeClusters.isEmpty()) {
-      if (includeClusters.containsKey(clusterName))
+      if (includeClusters.containsKey(clusterName)) {
         return includeClusters.get(clusterName);
+      }
     }
 
     // SYNCHRONIZE ALL FIELDS

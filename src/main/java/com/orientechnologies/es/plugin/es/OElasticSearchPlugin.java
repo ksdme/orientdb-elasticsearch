@@ -48,7 +48,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class OElasticSearchPlugin extends OServerPluginAbstract implements ODatabaseLifecycleListener {
   private OServer server;
-  private ConcurrentHashMap<String, OElasticSearchDatabaseConfiguration> clientConfigurations = new ConcurrentHashMap<String, OElasticSearchDatabaseConfiguration>();
+
+  private ConcurrentHashMap<String, OElasticSearchDatabaseConfiguration> clientConfigurations =
+    new ConcurrentHashMap<String, OElasticSearchDatabaseConfiguration>();
 
   private boolean enabled = false;
 
@@ -58,25 +60,29 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
 
     for (OServerParameterConfiguration param : iParams) {
       if (param.name.equalsIgnoreCase("enabled")) {
-        if (Boolean.parseBoolean(param.value))
-          // ENABLE IT
-
+        if (Boolean.parseBoolean(param.value)) {
           enabled = true;
+        }
       }
     }
+
     OLogManager.instance().info(this, "Elastic sync plugin enabled:: " + enabled);
   }
 
   @Override
   public void startup() {
-    if (!enabled)
+    if (!enabled) {
       return;
+    }
 
     Orient.instance().addDbLifecycleListener(this);
 
-    final OServerNetworkListener listener = server.getListenerByProtocol(ONetworkProtocolHttpAbstract.class);
-    if (listener == null)
+    final OServerNetworkListener listener = server
+      .getListenerByProtocol(ONetworkProtocolHttpAbstract.class);
+
+    if (listener == null) {
       throw new OConfigurationException("HTTP listener not found");
+    }
 
     listener.registerStatelessCommand(new OServerCommandESSync(this));
   }
@@ -84,8 +90,9 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
   @Override
   public void shutdown() {
     if (clientConfigurations != null) {
-      for (OElasticSearchDatabaseConfiguration c : clientConfigurations.values())
+      for (OElasticSearchDatabaseConfiguration c : clientConfigurations.values()) {
         c.getClient().close();
+      }
 
       clientConfigurations.clear();
     }
@@ -103,12 +110,15 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
 
   @Override
   public void onOpen(final ODatabaseInternal iDatabase) {
-
-    if (iDatabase.getName().equalsIgnoreCase("OSystem"))
+    if (iDatabase.getName().equalsIgnoreCase("OSystem")) {
       return;
+    }
 
     OLogManager.instance().info(this, "loading ES conf for database %s", iDatabase.getName());
-    final OElasticSearchDatabaseSync db = new OElasticSearchDatabaseSync(iDatabase.getName(), getESClient(iDatabase.getName()));
+
+    final OElasticSearchDatabaseSync db = new OElasticSearchDatabaseSync(
+      iDatabase.getName(), getESClient(iDatabase.getName()));
+
     iDatabase.registerHook(db);
   }
 
@@ -140,7 +150,9 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
     if (clientCfg == null) {
       final ODocument configuration = new ODocument();
 
-      final File esConfig = new File(server.getDatabaseDirectory() + dbName + "/elastic-search-config.json");
+      final File esConfig = new File(
+        server.getDatabaseDirectory() + dbName + "/elastic-search-config.json");
+
       if (esConfig.exists()) {
         try {
           configuration.fromJSON(OIOUtils.readFileAsString(esConfig), "noMap");
@@ -149,7 +161,6 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
         }
       } else {
         OLogManager.instance().warn(this, "Database %s is not configured for  sync on ES", dbName);
-
         return clientCfg;
       }
 
@@ -165,21 +176,33 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
           esClusterName = (String) configuration.eval("es.clusterName");
         }
 
-        final Settings settings = Settings.settingsBuilder().put("cluster.name", esClusterName).build();
-        clientCfg = new OElasticSearchDatabaseConfiguration(TransportClient.builder().settings(settings).build()
-            .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(esServer), esPort)), configuration);
+        final Settings settings = Settings.settingsBuilder()
+          .put("cluster.name", esClusterName)
+          .build();
 
-        final OElasticSearchDatabaseConfiguration existentClient = clientConfigurations.putIfAbsent(dbName, clientCfg);
+        clientCfg = new OElasticSearchDatabaseConfiguration(
+          TransportClient.builder()
+            .settings(settings)
+            .build()
+            .addTransportAddress(
+            new InetSocketTransportAddress(
+              InetAddress.getByName(esServer),
+              esPort)
+          ),
+          configuration
+        );
+
+        final OElasticSearchDatabaseConfiguration existentClient = clientConfigurations
+          .putIfAbsent(dbName, clientCfg);
+
         if (existentClient != null) {
           // CONCURRENT INSERT: CLOSE CURRENT ONE AND USE THE EXISTENT
           clientCfg.getClient().close();
           clientCfg = existentClient;
         }
       } catch (UnknownHostException e) {
-
         OLogManager.instance().error(this, "Error on connecting to ES server", e);
       }
-
     }
 
     return clientCfg;
@@ -193,5 +216,4 @@ public class OElasticSearchPlugin extends OServerPluginAbstract implements OData
   public String getName() {
     return "es-plugin";
   }
-
 }

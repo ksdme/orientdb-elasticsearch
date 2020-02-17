@@ -56,13 +56,15 @@ public class OElasticSearchDatabaseSync extends ODocumentHookAbstract {
   private final OElasticSearchDatabaseConfiguration esClient;
   private final String                              dbName;
 
-  public OElasticSearchDatabaseSync(final String dbName, final OElasticSearchDatabaseConfiguration esClient) {
+  public OElasticSearchDatabaseSync(final String dbName,
+    final OElasticSearchDatabaseConfiguration esClient) {
     this.dbName = dbName;
     this.esClient = esClient;
   }
 
   public long syncBatch(final Iterator<? extends OIdentifiable> iterator) {
-    final BulkProcessor bulkProcessor = BulkProcessor.builder(esClient.getClient(), new BulkProcessor.Listener() {
+    final BulkProcessor bulkProcessor = BulkProcessor
+    .builder(esClient.getClient(), new BulkProcessor.Listener() {
 
       @Override
       public void beforeBulk(long l, BulkRequest bulkRequest) {
@@ -75,24 +77,30 @@ public class OElasticSearchDatabaseSync extends ODocumentHookAbstract {
       @Override
       public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
       }
-    }).setBulkActions(10000).setBulkSize(new ByteSizeValue(10, ByteSizeUnit.MB)).setFlushInterval(TimeValue.timeValueSeconds(30))
-        .build();
+
+    }).setBulkActions(10000)
+    .setBulkSize(new ByteSizeValue(10, ByteSizeUnit.MB))
+    .setFlushInterval(TimeValue.timeValueSeconds(30))
+    .build();
 
     long syncItems;
     for (syncItems = 0; iterator.hasNext(); syncItems++) {
       final OIdentifiable id = iterator.next();
-
       final ORecord record = id.getRecord();
-
       final Map<String, Object> map = getMap(record);
 
-      if (map != null)
+      if (map != null) {
         bulkProcessor.add(
-            new IndexRequest(getIndexName(), ((ODocument) record).getClassName(), record.getIdentity().toString()).source(map));
+          new IndexRequest(
+            getIndexName(),
+            ((ODocument) record).getClassName(),
+            record.getIdentity().toString()
+          ).source(map)
+        );
+      }
     }
 
     bulkProcessor.close();
-
     return syncItems;
   }
 
@@ -120,15 +128,17 @@ public class OElasticSearchDatabaseSync extends ODocumentHookAbstract {
 
         if (value instanceof ORidBag) {
           final List<OIdentifiable> list = new ArrayList<OIdentifiable>();
+
           for (Iterator<OIdentifiable> it = ((ORidBag) value).rawIterator(); it.hasNext(); ) {
             list.add(it.next());
           }
-          map.put(f, list);
 
+          map.put(f, list);
         } else if (value instanceof ORecord && ((ORecord) value).getIdentity().isPersistent()) {
           map.put(f, ((ORecord) value).getIdentity());
-        } else
+        } else {
           map.put(f, value);
+        }
       }
     }
 
@@ -137,19 +147,36 @@ public class OElasticSearchDatabaseSync extends ODocumentHookAbstract {
 
   @Override
   public void onRecordAfterCreate(final ODocument iDocument) {
-    esClient.getClient().prepareIndex(getIndexName(), iDocument.getClassName(), iDocument.getIdentity().toString())
-        .setSource(iDocument.toMap()).get();
+    esClient.getClient()
+      .prepareIndex(
+        getIndexName(),
+        iDocument.getClassName(),
+        iDocument.getIdentity().toString()
+      )
+      .setSource(iDocument.toMap()).get();
   }
 
   @Override
   public void onRecordAfterUpdate(ODocument iDocument) {
-    esClient.getClient().prepareIndex(getIndexName(), iDocument.getClassName(), iDocument.getIdentity().toString())
-        .setSource(iDocument.toMap()).get();
+    esClient.getClient()
+      .prepareIndex(
+        getIndexName(),
+        iDocument.getClassName(),
+        iDocument.getIdentity().toString()
+      )
+      .setSource(iDocument.toMap()).get();
   }
 
   @Override
   public void onRecordAfterDelete(ODocument iDocument) {
-    esClient.getClient().delete(new DeleteRequest(getIndexName(), iDocument.getClassName(), iDocument.getIdentity().toString()));
+    esClient
+      .getClient()
+      .delete(new DeleteRequest(
+        getIndexName(),
+        iDocument.getClassName(),
+        iDocument.getIdentity().toString()
+      )
+    );
   }
 
   @Override
@@ -162,26 +189,51 @@ public class OElasticSearchDatabaseSync extends ODocumentHookAbstract {
   }
 
   public void dropClass(final String className) {
-    SearchResponse scrollResponse = esClient.getClient().prepareSearch(getIndexName()).setTypes(className)
-        .setSearchType(SearchType.SCAN).setScroll(new TimeValue(60000)).setQuery(QueryBuilders.matchAllQuery()).setSize(100).get();
-    final BulkRequestBuilder bulkRequestBuilder = esClient.getClient().prepareBulk().setRefresh(true);
+    SearchResponse scrollResponse = esClient
+      .getClient()
+      .prepareSearch(getIndexName())
+      .setTypes(className)
+      .setSearchType(SearchType.SCAN)
+      .setScroll(new TimeValue(60000))
+      .setQuery(QueryBuilders.matchAllQuery())
+      .setSize(100).get();
+
+    final BulkRequestBuilder bulkRequestBuilder = esClient
+      .getClient()
+      .prepareBulk()
+      .setRefresh(true);
+
     while (true) {
       if (scrollResponse.getHits().getHits().length == 0) {
         break;
       }
 
       for (SearchHit hit : scrollResponse.getHits().getHits()) {
-        bulkRequestBuilder.add(esClient.getClient().prepareDelete(getIndexName(), className, hit.getId()));
+        bulkRequestBuilder.add(
+          esClient
+            .getClient()
+            .prepareDelete(getIndexName(), className, hit.getId())
+        );
       }
 
-      scrollResponse = esClient.getClient().prepareSearchScroll(scrollResponse.getScrollId()).setScroll(new TimeValue(60000)).get();
+      scrollResponse = esClient
+        .getClient()
+        .prepareSearchScroll(scrollResponse.getScrollId())
+        .setScroll(new TimeValue(60000))
+        .get();
     }
+
     if (bulkRequestBuilder.numberOfActions() > 0) {
       bulkRequestBuilder.get();
     }
   }
 
   public void drop() {
-    esClient.getClient().admin().indices().delete(new DeleteIndexRequest(getIndexName())).actionGet();
+    esClient
+      .getClient()
+      .admin()
+      .indices()
+      .delete(new DeleteIndexRequest(getIndexName()))
+      .actionGet();
   }
 }
